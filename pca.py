@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.decomposition import PCA
-from pyroData import get_dataset
 import h5py
+from sklearn.preprocessing import LabelBinarizer
 
 __all__ = ['PCAIterator']
 
@@ -28,7 +28,7 @@ class PCAIterator():
     """ Augment samples along their principal components
     """
 
-    def __init__(self, X):
+    def __init__(self, X, y=None):
         X_ = X[..., ::8, ::8].transpose((0, 2, 3, 1)).reshape(-1, 3)
         pca = PCA(n_components=3, copy=True, whiten=False)
         pca.fit(X_)
@@ -36,7 +36,11 @@ class PCAIterator():
         self.std = np.sqrt(pca.explained_variance_)
         self.W_inv = np.linalg.inv(self.W)
         self.shape = X.shape
+        self.y = y
+        
+        
         assert np.allclose(np.dot(self.W, self.W_inv), np.eye(3), atol=1e-7)
+        assert (y is None) or (len(y) == len(X))
 
     def sample_noise(self,batch_size,spatial_scale=1, noise_level=.5):
         shape = [batch_size,
@@ -51,55 +55,31 @@ class PCAIterator():
         n = np.tensordot(np.stack((noise1, noise2, noise3), axis=1), self.W_inv, axes=((1,) ,(1,))).transpose((0, 3, 1, 2))
         return n.repeat(spatial_scale, axis=2).repeat(spatial_scale, 3)
     
-    def iterate(self, X, batch_size=16, shuffle=True, flip_h=True, flip_v=True, augment=True):
+    def iterate(self, X, y=None, batch_size=16, shuffle=True, flip_h=True, flip_v=True, augment=True, binarize = False):
+        assert (y is None) or (len(y) == len(X))
+        
+        if binarize and (y is not None):
+            lb = LabelBinarizer()
+            y = lb.fit_transform(y)
+        
         if shuffle:
-            np.random.shuffle(X)
+            idc = np.arange(len(X))
+            np.random.shuffle(idc)
+            X = X[idc]
+            if y is not None: y = y[idc]
         for idc in range(0, len(X), batch_size):
             if idc+batch_size > len(X): continue
             bX = flip(X[idc:idc+batch_size], flip_h, flip_v)
+            if y is not None: by = y[idc:idc+batch_size]
+            
             if augment:
-                N = self.sample_noise(batch_size, spatial_scale=X.shape[3], noise_level=.9)
-                N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//4, noise_level=.5)
-                N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//16, noise_level=.09)
+                N = self.sample_noise(batch_size, spatial_scale=X.shape[3], noise_level=.959)
+                #N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//4, noise_level=.5)
+                #N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//16, noise_level=.09)
             else:
                 N = 0
-            yield np.float32(np.clip(bX + N, 0, 255)), np.float32(bX)
-
-
-
-### ----------------------------------------------------------------------------- 
-
-def pca_report(x):
-    
-    x_ = x[..., ::8, ::8].transpose((0, 2, 3, 1)).reshape(-1, 3)
-    pca = PCA(n_components=3, copy=True, whiten=False)
-    pca.fit(x_)
-
-    print("PCA on data with shape ", x_.shape)
-    print()
-    print("Components")
-    print(pca.components_)
-
-    print()
-    print("explained variance ratio")
-    print(pca.explained_variance_ratio_)
-
-
-if __name__ == '__main__':
-    fname = "stainnorm_big.hdf5"
-    Xall = []
-    with h5py.File(fname, "r") as ds:
-        for key in list(ds.keys()):
-            for lbl in list(ds[key].keys()):
-                X = (ds[key][lbl][...]).astype("float32")
-                np.random.shuffle(X)
-                print("_"*80)
-                print("Dataset: ", lbl)
-                pca_report(X)
-                Xall.append(X)
-    print("_"*80)
-    print("Dataset: Combined")
-    Xall = np.concatenate(Xall, axis=0)[::len(Xall)]
-    pca_report(Xall)
-
-
+            
+            if y is not None:
+                yield np.float32(np.clip(bX + N, 0, 255)), np.float32(bX), by
+            else:
+                yield np.float32(np.clip(bX + N, 0, 255)), np.float32(bX)
