@@ -1,0 +1,36 @@
+# gram matrix and loss
+class GramMatrix(nn.Module):
+    def forward(self, input):
+        b,c,h,w = input.size()
+        F = input.view(b, c, h*w)
+        G = torch.bmm(F, F.transpose(1,2)) 
+        G.div_(h*w)
+        return G
+
+class GramMSELoss(nn.Module):
+    def forward(self, input, target):
+        out = nn.MSELoss()(GramMatrix()(input), target)
+        return(out)
+    
+class FeatureMeanLoss(_Loss):
+    def __init__(self, log_input=True, full=False, size_average=True):
+        super(PoissonNLLLoss, self).__init__()
+        self.log_input = log_input
+        self.full = full
+        self.size_average = size_average
+
+    def forward(self, input, target):
+        _assert_no_grad(target)
+        
+        input - target , 
+
+class FeatureStdLoss(_Loss):
+    def __init__(self, log_input=True, full=False, size_average=True):
+        super(PoissonNLLLoss, self).__init__()
+        self.log_input = log_input
+        self.full = full
+        self.size_average = size_average
+
+    def forward(self, log_input, target):
+        _assert_no_grad(target)
+        return F.poisson_nll_loss(log_input, target, self.log_input, self.full, self.size_average)
