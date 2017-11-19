@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.decomposition import PCA
-from pyroData import get_dataset
 import h5py
 
 __all__ = ['PCAIterator']
@@ -18,7 +17,7 @@ def flip(xx, flip_h=True, flip_v=True):
         flip_v = np.random.choice([-1, 1], size=len(xx))
     else:
         flip_v = np.ones(len(xx))
-    
+
     # TODO there a probably faster ways to do individual flipping using some indexig
     # technique?
     return np.stack((x[:, ::h, ::v] for x, h, v in zip(xx, flip_h, flip_v)), axis=0)
@@ -46,11 +45,11 @@ class PCAIterator():
         noise1 = np.random.normal(0, self.std[0]*noise_level, size=shape)
         noise2 = np.random.normal(0, self.std[1]*noise_level, size=shape)
         noise3 = np.random.normal(0, self.std[2]*noise_level, size=shape)
-        
+
         # stacked noise with [B, C', I, J] tdot(1) [C, C'] --> [B, I, J, C] -- transposed --> [B, C, I, J]
         n = np.tensordot(np.stack((noise1, noise2, noise3), axis=1), self.W_inv, axes=((1,) ,(1,))).transpose((0, 3, 1, 2))
         return n.repeat(spatial_scale, axis=2).repeat(spatial_scale, 3)
-    
+
     def iterate(self, X, batch_size=16, shuffle=True, flip_h=True, flip_v=True, augment=True):
         if shuffle:
             np.random.shuffle(X)
@@ -67,10 +66,10 @@ class PCAIterator():
 
 
 
-### ----------------------------------------------------------------------------- 
+### -----------------------------------------------------------------------------
 
 def pca_report(x):
-    
+
     x_ = x[..., ::8, ::8].transpose((0, 2, 3, 1)).reshape(-1, 3)
     pca = PCA(n_components=3, copy=True, whiten=False)
     pca.fit(x_)
@@ -101,5 +100,3 @@ if __name__ == '__main__':
     print("Dataset: Combined")
     Xall = np.concatenate(Xall, axis=0)[::len(Xall)]
     pca_report(Xall)
-
-
