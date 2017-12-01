@@ -22,9 +22,6 @@ _fname_params = { "vgg1": "params/vgg_normalised_conv1_1.t7",
                  "decoder1": "params/feature_invertor_conv1_1.t7"
               }
 
-
-    
-
 class encoder1(nn.Module):
     def __init__(self,vgg1):
         super(encoder1,self).__init__()
@@ -374,7 +371,7 @@ class encoder4(nn.Module):
         out = self.conv3(out)
         pool1 = self.relu3(out)
         out,pool_idx = self.maxPool(pool1)
-        
+
         out = self.reflecPad4(out)
         out = self.conv4(out)
         z1 = out = self.relu4(out)
@@ -382,7 +379,7 @@ class encoder4(nn.Module):
         out = self.conv5(out)
         pool2 = self.relu5(out)
         out,pool_idx2 = self.maxPool2(pool2)
-        
+
         out = self.reflecPad6(out)
         out = self.conv6(out)
         out = self.relu6(out)
@@ -396,7 +393,7 @@ class encoder4(nn.Module):
         out = self.conv9(out)
         pool3 = self.relu9(out)
         out,pool_idx3 = self.maxPool3(pool3)
-        
+
         out = self.reflecPad10(out)
         out = self.conv10(out)
         out = self.relu10(out)
@@ -814,7 +811,7 @@ class decoder5(nn.Module):
         out = self.reflecPad27(out)
         out = self.conv27(out)
         return out
-    
+
 _encoder_list = [encoder1, encoder2, encoder3, encoder4, encoder5]
 _decoder_list = [decoder1, decoder2, decoder3, decoder4, decoder5]
 
@@ -823,7 +820,7 @@ def get_encoder(depth=1):
     model_enc = _encoder_list[depth-1](enc)
     del(enc)
     return model_enc
-    
+
 def get_decoder(depth=1):
     dec       = load_lua(_fname_params['decoder{}'.format(depth)])
     model_dec = _decoder_list[depth-1](dec)
