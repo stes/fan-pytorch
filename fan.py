@@ -114,150 +114,6 @@ class Transformer(nn.Module):
         y = self.conv3(y)
 
         return y
-
-class StainNormalizer2(nn.Module):
-    """ Stain Normalization Network
-
-    features:
-        incremental list of features to use as the inputs to FAN modules
-    """
-
-    def __init__(self, latent_size=32):
-
-        super().__init__()
-
-        self.feature_extractor = SqueezeNet(None, extract=('4', '7', '12'))
-        
-        self.transformer     = Transformer(3,16,32,relu=True,batch_norm=True)
-        self.inv_transformer = Transformer(32,16,3,relu=True,batch_norm=False)
-
-        self.adain_s8 = AdaptiveInstanceNorm(latent_size, 512, scale=8)
-        self.fan_s8   = FeatureAwareNorm(latent_size, 512, scale=8)
-        #self.fan_s4 = FeatureAwareNorm(latent_size, 256, scale=4)
-        #self.fan_s2 = FeatureAwareNorm(latent_size, 128, scale=2)
-        
-        
-        self.norm = nn.InstanceNorm2d(latent_size, momentum=0., affine=False)
-        
-        self._initialize()
-        
-    def _initialize(self):
-
-        for param in self.feature_extractor.features.parameters():
-            param.requires_grad = False
-    
-    def get_training_params(self, finetune=False):
-        trainable_modules = [self.adain_s8.parameters(),
-                             self.fan_s8.parameters()]
-        
-        if not finetune:
-            trainable_modules += [self.transformer.parameters(),
-                                 self.inv_transformer.parameters()]
-        
-        for mod in trainable_modules:
-            for param in mod:
-                yield param
-    
-    def norm_input(self, x):
-        return x / 255.
-    
-    def forward(self, content, style):
-        
-        train = True
-        
-        content = self.norm_input(content)
-        style   = self.norm_input(style)
-        
-        y_content = self.transformer(content)
-        y_style   = self.transformer(style)
-        z_style   = self.feature_extractor(style)
-        
-        N, C, W, H = y_style.size()
-        gamma = y_style.view(N,C,W*H).std(dim=2).view(N,C,1,1)
-        beta  = y_style.view(N,C,W*H).mean(dim=2).view(N,C,1,1)
-        
-        y_normed = self.norm(y_content)
-        y_normed = torch.mul(y_normed, gamma) + beta
-        
-        #y_normed = self.adain_s8(y_normed,  z_style[2])
-        #y_normed = self.fan_s8(y_normed,  z_style[2])
-        #y_normed = self.fan_s4(y_normed,  z_style[1])
-        #y_normed = self.fan_s2(y_normed,  z_style[0])
-        
-        normed = self.inv_transformer(y_normed)
-        normed = 0.9 * torch.clamp(normed, 0, 1.5) + 0.1 * normed
-        
-        if train:
-            # Additional computation for training phase
-            z_content    = self.feature_extractor(content)
-            z_normed     = self.feature_extractor(normed)
-            
-            return normed, z_content, z_style, z_normed
-
-        return normed
-        
-        
-class StainNormalizer(nn.Module):
-    """ Stain Normalization Network
-
-    features:
-        incremental list of features to use as the inputs to FAN modules
-    """
-
-    def __init__(self, latent_size=32, domain_discrimination=False):
-
-        super().__init__()
-        
-        self.domain_discrimination = domain_discrimination
-
-        self.feature_extractor = torch.load('classifier_split0.pth') #SqueezeNet(num_classes=8)
-
-        self.fan_s8 = FeatureAwareNorm(latent_size, 512, scale=8)
-        self.fan_s4 = FeatureAwareNorm(latent_size, 256, scale=4)
-        self.fan_s2 = FeatureAwareNorm(latent_size, 128, scale=2)
-
-        self.transformer     = Transformer(3,16,32,relu=True,batch_norm=True)
-        self.inv_transformer = Transformer(32,16,3,relu=False,batch_norm=True)
-        
-        self._initialize()
-        
-    def _initialize(self):
-
-        if not self.domain_discrimination:
-            for param in self.feature_extractor.features.parameters():
-                param.requires_grad = False
-    
-    def get_training_params(self, finetune=False):
-        trainable_modules = [self.feature_extractor.classifier.parameters(),
-                             self.fan_s8.parameters(),
-                             self.fan_s4.parameters(),
-                             self.fan_s2.parameters()]
-        
-        if not finetune:
-            trainable_modules += [self.transformer.parameters(),
-                                 self.inv_transformer.parameters()]
-        
-        if self.domain_discrimination:
-            trainable_modules += [self.feature_extractor.features.parameters()]
-        
-        for mod in trainable_modules:
-            for param in mod:
-                yield param
-
-    def forward(self, x):
-        (z2, z4, z8), d = self.feature_extractor(x/128. - 1)
-
-        y = self.transformer(x)
-        y = self.fan_s8(y, z8)
-        y = self.fan_s4(y, z4)
-        y = self.fan_s2(y, z2)
-        y = self.inv_transformer(y)
-        
-        if self.domain_discrimination:
-            _, dnorm = self.feature_extractor(x)
-            return y, d, dnorm
-
-        return y, d
  
     
 class AdaptiveInstanceNorm(nn.Module):
@@ -299,7 +155,7 @@ class FeatureAwareNorm(nn.Module):
                                  outp_channel=in_x)
         self.add_gate = upsample(upscale_factor=scale, inp_channel=in_z,\
                                  outp_channel=in_x)
-        self.sigm = nn.Sigmoid()
+        self.tanh = nn.Tanh()
         self.relu = nn.ReLU()
         
         self.norm = nn.InstanceNorm2d(in_x, momentum=0., affine=False)
@@ -308,8 +164,9 @@ class FeatureAwareNorm(nn.Module):
         self.inp_channel = in_x
 
     def forward(self, x, z):
-        gamma = self.sigm(self.mul_gate(z)) * 3.
+        gamma = self.tanh(self.mul_gate(z))
         beta  = self.add_gate(z)
+        
         x = self.norm(x)
 
         return torch.mul(x, gamma) + beta

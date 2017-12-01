@@ -17,7 +17,7 @@ import sys
 from torch.autograd import Variable
 import time
 
-import fan
+import fan, models
 
 class StainNormalizer():
     
@@ -41,7 +41,7 @@ class StainNormalizer():
         self.weights = weights
         self.verbose = verbose      
 
-        self.model     = fan.StainNormalizer2()
+        self.model     = models.StainNormalizerMultiFAN()
         self.optimizer = torch.optim.Adam(self.model.get_training_params(), lr = self.learning_rate)
 
         if use_gpu: self.cuda(device_id)

@@ -3,6 +3,11 @@ from sklearn.decomposition import PCA
 import h5py
 from sklearn.preprocessing import LabelBinarizer
 
+import torch
+import torch.nn.functional as F
+from torch.autograd import Variable
+
+
 __all__ = ['PCAIterator']
 
 
@@ -53,7 +58,8 @@ class PCAIterator():
         
         # stacked noise with [B, C', I, J] tdot(1) [C, C'] --> [B, I, J, C] -- transposed --> [B, C, I, J]
         n = np.tensordot(np.stack((noise1, noise2, noise3), axis=1), self.W_inv, axes=((1,) ,(1,))).transpose((0, 3, 1, 2))
-        return n.repeat(spatial_scale, axis=2).repeat(spatial_scale, 3)
+        return F.upsample(Variable(torch.from_numpy(n)), None, spatial_scale, 'bilinear').data.numpy().squeeze()
+        #return n.repeat(spatial_scale, axis=2).repeat(spatial_scale, 3)
     
     def iterate(self, X, y=None, batch_size=16, shuffle=True, flip_h=True, flip_v=True, augment=True, binarize = False):
         assert (y is None) or (len(y) == len(X))
@@ -67,19 +73,21 @@ class PCAIterator():
             np.random.shuffle(idc)
             X = X[idc]
             if y is not None: y = y[idc]
+                
         for idc in range(0, len(X), batch_size):
             if idc+batch_size > len(X): continue
             bX = flip(X[idc:idc+batch_size], flip_h, flip_v)
             if y is not None: by = y[idc:idc+batch_size]
             
             if augment:
-                N = self.sample_noise(batch_size, spatial_scale=X.shape[3], noise_level=.959)
-                #N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//4, noise_level=.5)
-                #N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//16, noise_level=.09)
+                N = self.sample_noise(batch_size, spatial_scale=X.shape[3], noise_level=.9)
+                N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//4, noise_level=.8)
+                N += self.sample_noise(batch_size, spatial_scale=X.shape[3]//16, noise_level=.1)
             else:
                 N = 0
             
+            d = np.clip(np.random.uniform(0.3,1.9,size=(bX.shape[0],1,1,1)),0,1)
             if y is not None:
-                yield np.float32(np.clip(bX + N, 0, 255)), np.float32(bX), by
+                yield np.float32(np.clip(d*bX + N, 0, 1.)), np.float32(bX), by
             else:
-                yield np.float32(np.clip(bX + N, 0, 255)), np.float32(bX)
+                yield np.float32(np.clip(d*(bX + N), 0, 1.)), np.float32(bX)
