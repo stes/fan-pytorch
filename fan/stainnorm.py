@@ -13,7 +13,7 @@ import torch.nn.init as init
 
 from torch.nn import functional, init
 
-import transformer, fan
+from . import transformer, layer
 
 class StainNormalizerMultiFAN(nn.Module):
     """ Stain Normalization Network
@@ -30,9 +30,9 @@ class StainNormalizerMultiFAN(nn.Module):
 
         self.feature_extractor = transformer.get_encoder(depth=4)
 
-        self.fan_s8 = fan.FeatureAwareNorm(128, 512, scale=4)
-        self.fan_s4 = fan.FeatureAwareNorm(128, 256, scale=2)
-        self.fan_s2 = fan.FeatureAwareNorm(128, 128, scale=1)
+        self.fan_s8 = layer.FeatureAwareNorm(128, 512, scale=4)
+        self.fan_s4 = layer.FeatureAwareNorm(128, 256, scale=2)
+        self.fan_s2 = layer.FeatureAwareNorm(128, 128, scale=1)
 
         self.transformer     = transformer.get_encoder(depth=2)
         self.inv_transformer = transformer.get_decoder(depth=2)

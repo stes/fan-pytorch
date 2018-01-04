@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import os
 from skimage import io
-from tifffile import imread
+#from tifffile import imread
 
 def get_iluminate(fname="data/patches_train_patches_192.hdf5",
                 train_key="H.E.T+", val_key="H.E.T.",
@@ -39,7 +39,7 @@ def get_kather(root):
         
         for j, fname in enumerate(imgfiles):
             path = os.path.join(root, cl, fname)
-            X.append(imread(path))
+            X.append(io.imread(path))
             y.append(i)
             fnames.append(path)
         lbl.append(cl)
