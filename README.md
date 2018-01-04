@@ -13,6 +13,23 @@ A full network for color normalization can be accessed either directly using the
 from fan.stainnorm import StainNormalizerMultiFAN
 ```
 
+## Dependencies
+
+Code was tested using Python 3.6.
+
+To run the FAN demo, please make sure that you installed the following packages:
+- `numpy`
+- `scipy`
+- `matplotlib`
+- `torch`
+- `h5py`
+- `sklearn`
+
+```
+pip -r requirements.txt
+```
+
+
 ## Dataset
 
 We also provide the dataset used for the validation of our approach.

@@ -101,3 +101,55 @@ def panelize(img):
         rows.append(
             np.hstack([img[j, :, :, :].reshape(nb_channel, w, h).transpose((1, 2, 0)) for j in range(start, stop)]))
     return np.vstack(rows)
+
+
+import os
+import logging, logging.handlers
+
+TIME_FORMAT = "%Y%m%d %H%M%S"
+""" str : Default time format used by the logger """
+
+LOG_FORMAT = '%(asctime)-15s %(levelname)-6s %(name)-8s %(message)-60s'
+""" str : Default messsage format used by the logger """
+
+#### Logging ####
+
+def logger_setup(filename=None, fmt_log=LOG_FORMAT, fmt_time=TIME_FORMAT, level=logging.DEBUG):
+    ''' Configure the logger
+
+    Set up the logger and configure the save path for the log file as well as formats and logging level.
+    When no arguments are given, logging output is not saved on disk and the default values for format
+    and log level are used.
+
+    Parameters
+    ---------
+    filename : Optional[str]
+        filename of logfile. The associated directory has to exist, otherwise an error message is thrown
+    fmt_log : Optional[str]
+        Format used for log messages. See ``ilu_deepml.tools.LOG_FORMAT``
+    fmt_time: Optional[str]
+        Time format used for log messages. See ``ilu_deepml.tools.TIME_FORMAT``
+    level: Optional[logging.level]
+        Log level
+
+    Example
+    -------
+    >>> import logging
+    >>> from ilu_deepml.tools import logger_setup
+    >>> logger_setup()
+    >>> log = logging.getLogger(__name__)
+    >>> log.info("Test message")
+
+    '''
+    formatter = logging.Formatter(fmt_log, fmt_time)
+    if filename is not None:
+        fh = logging.handlers.RotatingFileHandler(filename, mode='a', maxBytes=10 * 1024 ** 2, backupCount=10,
+                                                  encoding='utf-8')
+        fh.setFormatter(formatter)
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+    rootLogger = logging.getLogger('')
+    rootLogger.addHandler(ch)
+    if filename is not None:
+        rootLogger.addHandler(fh)
+    rootLogger.setLevel(level=level)
