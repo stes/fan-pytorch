@@ -4,12 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import torch.utils.model_zoo as model_zoo
-import numpy as np
-
-from torchvision.models.squeezenet import Fire
-import torch
-import torch.nn as nn
-import torch.nn.init as init
 
 from torch.nn import functional, init
 
@@ -17,7 +11,7 @@ import sys
 from torch.autograd import Variable
 import time
 
-import fan, models
+from . import fan, models
 
 class StainNormalizer():
     

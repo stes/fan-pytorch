@@ -72,12 +72,6 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
 
-
-if __name__ == '__main__':
-    import h5py
-    with h5py.File("X:\\temp\\ilu-p150-normed.hdf5", 'r') as ds:
-        print(list(ds.keys()))
-
 def panelize(img):
     if img.ndim == 1:
         raise ValueError("Invalid dimensions for image data" + str(img.shape))
