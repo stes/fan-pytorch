@@ -1,9 +1,11 @@
 # fan-pytorch
+## *NOTE: Repository still under construction*
 
 Feature Aware Normalization
 Project homepage: [stes.github.io/fan](https://stes.github.io/fan)
 
 Implementation of Feature Aware Normalization in PyTorch.
+Original implementation with Demo in Theano: [github.com/stes/fan](https://github.com/stes/fan)
 
 ## Interfaces
 
